@@ -13,6 +13,7 @@
 #include "Window.h"
 #include "Mesh.h"
 #include "Shader.h"
+#include "Camera.h"
 
 // window dimensions
 const GLint WIDTH = 800;
@@ -20,6 +21,9 @@ const GLint HEIGHT = 600;
 
 std::vector<Mesh*> meshList;
 std::vector<Shader*> shaderList;
+
+GLfloat deltaTime = 0.0f;
+GLfloat lastTime = 0.0f;
 
 // shader file paths
 const char* vertexShaderPath = "shaders/shader.vert";
@@ -78,6 +82,8 @@ int main()
 	CreateObjects();
 	CreateShaders();
 
+	Camera camera(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f, 5.0f, 0.1f);
+
 	// NOTE(christian): I understand the idea behind the near and far but why these values?
 	glm::mat4 projection =
 		glm::perspective(45.0f, (GLfloat)mainWindow.getWidth() / (GLfloat)mainWindow.getHeight(), 0.1f, 100.0f);
@@ -85,8 +91,15 @@ int main()
 	// loop until window closed
 	while (!mainWindow.getShouldClose())
 	{
+		GLfloat now = (GLfloat)glfwGetTime();
+		deltaTime = now - lastTime;
+		lastTime = now;
+		
 		// get + hanlde user input events
 		mainWindow.pollEvents();
+
+		camera.keyControll(mainWindow.getKeys(), deltaTime);
+		camera.mouseControll(mainWindow.getXChange(), mainWindow.getYChange());
 
 		// clear window
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -95,12 +108,14 @@ int main()
 		// draw stuff
 		shaderList[0]->use();
 		GLuint uniformModel = shaderList[0]->GetModelLocation();
+		GLuint uniformView = shaderList[0]->GetViewLocation();
 		GLuint uniformProjection = shaderList[0]->GetProjectionLocation();
 
 		// draw one object
 		glm::mat4 model(1.0f);
 		model = glm::translate(model, glm::vec3(-2.0f, 0.0f, -5.0f));
 		glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
+		glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(camera.calculateViewMatrix()));
 		glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projection));
 		meshList[0]->Render();
 
@@ -108,6 +123,7 @@ int main()
 		model = glm::mat4(1.0f);
 		model = glm::translate(model, glm::vec3(2.0f, 0.0f, -5.0f));
 		glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
+		glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(camera.calculateViewMatrix()));
 		glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projection));
 		meshList[1]->Render();
 
