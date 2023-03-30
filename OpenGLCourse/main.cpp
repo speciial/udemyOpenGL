@@ -17,6 +17,7 @@
 #include "Shader.h"
 #include "Camera.h"
 #include "Texture.h"
+#include "Light.h"
 
 // window dimensions
 const GLint WIDTH = 800;
@@ -92,6 +93,8 @@ int main()
 	Texture dirtTexture("textures/dirt.png");
 	dirtTexture.LoadTexture();
 
+	Light mainLight(1.0f, 1.0f, 1.0f, 1.0f);
+
 	// NOTE(christian): I understand the idea behind the near and far but why these values?
 	glm::mat4 projection =
 		glm::perspective(45.0f, (GLfloat)mainWindow.getWidth() / (GLfloat)mainWindow.getHeight(), 0.1f, 100.0f);
@@ -118,6 +121,10 @@ int main()
 		GLuint uniformModel = shaderList[0]->GetModelLocation();
 		GLuint uniformView = shaderList[0]->GetViewLocation();
 		GLuint uniformProjection = shaderList[0]->GetProjectionLocation();
+		GLuint uniformAmbientColor = shaderList[0]->GetAmbientColorLocation();
+		GLuint uniformAmbientIntensity = shaderList[0]->GetAmbientIntensityLocation();
+
+		mainLight.useLight(uniformAmbientIntensity, uniformAmbientColor);
 
 		// draw one object
 		glm::mat4 model(1.0f);
