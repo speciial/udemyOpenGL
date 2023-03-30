@@ -33,6 +33,47 @@ GLfloat lastTime = 0.0f;
 const char* vertexShaderPath = "shaders/shader.vert";
 const char* fragmentShaderPath = "shaders/shader.frag";
 
+void calcAverageNormals(GLuint *indices, unsigned int indexCount, 
+	GLfloat *vertices, unsigned int vertexCount,
+	unsigned int vLength, unsigned int normalOffset)
+{
+	// TODO(christian): what is going on here?
+	for (size_t triangleVertIndex = 0; triangleVertIndex < indexCount; triangleVertIndex += 3)
+	{
+		unsigned int triIndex0 = indices[triangleVertIndex] * vLength;
+		unsigned int triIndex1 = indices[triangleVertIndex + 1] * vLength;
+		unsigned int triIndex2 = indices[triangleVertIndex + 2] * vLength;
+
+		glm::vec3 v1(
+			vertices[triIndex1] - vertices[triIndex0],
+			vertices[triIndex1 + 1] - vertices[triIndex0 + 1],
+			vertices[triIndex1 + 2] - vertices[triIndex0 + 2]);
+		glm::vec3 v2(
+			vertices[triIndex2] - vertices[triIndex0],
+			vertices[triIndex2 + 1] - vertices[triIndex0 + 1],
+			vertices[triIndex2 + 2] - vertices[triIndex0 + 2]);
+	
+		glm::vec3 normal = glm::normalize(glm::cross(v1, v2));
+
+		triIndex0 += normalOffset;
+		triIndex1 += normalOffset;
+		triIndex2 += normalOffset;
+		vertices[triIndex0] += normal.x; vertices[triIndex0 + 1] += normal.y; vertices[triIndex0 + 2] += normal.z;
+		vertices[triIndex1] += normal.x; vertices[triIndex1 + 1] += normal.y; vertices[triIndex1 + 2] += normal.z;
+		vertices[triIndex2] += normal.x; vertices[triIndex2 + 1] += normal.y; vertices[triIndex2 + 2] += normal.z;
+	}
+
+	for (size_t vertexIndex = 0; vertexIndex < (vertexCount / vLength); ++vertexIndex)
+	{
+		unsigned int nOffset = (vertexIndex * vLength) + normalOffset;
+		glm::vec3 vec = glm::normalize(
+			glm::vec3(vertices[nOffset], vertices[nOffset + 1], vertices[nOffset + 2]));
+		vertices[nOffset] = vec.x;
+		vertices[nOffset + 1] = vec.y;
+		vertices[nOffset + 2] = vec.z;
+	}
+}
+
 // NOTE(christian): this is probably pretty bad code. Since it is simple it won't hurt 
 //					to have this here, but the creation of objects should be handled 
 //					differently.
@@ -46,21 +87,23 @@ void CreateObjects()
 	};
 
 	GLfloat vertices[] = {
-		// x      y     z      u     v
-		-1.0f, -1.0f, 0.0f,  0.0f, 0.0f,
-		 0.0f, -1.0f, 1.0f,  0.5f, 0.0f,
-		 1.0f, -1.0f, 0.0f,  1.0f, 0.0f,
-		 0.0f,  1.0f, 0.0f,  0.5f, 1.0f
+		// x      y     z      u     v     nx    ny    nz
+		-1.0f, -1.0f, 0.0f,  0.0f, 0.0f,  0.0f, 0.0f, 0.0f,
+		 0.0f, -1.0f, 1.0f,  0.5f, 0.0f,  0.0f, 0.0f, 0.0f,
+		 1.0f, -1.0f, 0.0f,  1.0f, 0.0f,  0.0f, 0.0f, 0.0f,
+		 0.0f,  1.0f, 0.0f,  0.5f, 1.0f,  0.0f, 0.0f, 0.0f
 	};
+
+	calcAverageNormals(indices, 12, vertices, 32, 8, 5);
 
 	// NOTE(christian): I still don't understand why there are "create" calls instead of just
 	//					using the contructor. 
 	Mesh* mesh1 = new Mesh();
-	mesh1->Create(vertices, indices, 20, 12);
+	mesh1->Create(vertices, indices, 32, 12);
 	meshList.push_back(mesh1);
 
 	Mesh* mesh2 = new Mesh();
-	mesh2->Create(vertices, indices, 20, 12);
+	mesh2->Create(vertices, indices, 32, 12);
 	meshList.push_back(mesh2);
 }
 
@@ -93,7 +136,8 @@ int main()
 	Texture dirtTexture("textures/dirt.png");
 	dirtTexture.LoadTexture();
 
-	Light mainLight(1.0f, 1.0f, 1.0f, 1.0f);
+	Light mainLight(1.0f, 1.0f, 1.0f, 0.2f,
+		2.0f, -1.0f, -2.0f, 1.0f);
 
 	// NOTE(christian): I understand the idea behind the near and far but why these values?
 	glm::mat4 projection =
@@ -121,10 +165,14 @@ int main()
 		GLuint uniformModel = shaderList[0]->GetModelLocation();
 		GLuint uniformView = shaderList[0]->GetViewLocation();
 		GLuint uniformProjection = shaderList[0]->GetProjectionLocation();
+		
 		GLuint uniformAmbientColor = shaderList[0]->GetAmbientColorLocation();
 		GLuint uniformAmbientIntensity = shaderList[0]->GetAmbientIntensityLocation();
+		GLuint uniformDirection = shaderList[0]->GetDirectionLocation();
+		GLuint uniformDiffuseIntensity = shaderList[0]->GetDiffuseIntensityLocation();
 
-		mainLight.useLight(uniformAmbientIntensity, uniformAmbientColor);
+		mainLight.useLight(uniformAmbientIntensity, uniformAmbientColor,
+			uniformDiffuseIntensity, uniformDirection);
 
 		// draw one object
 		glm::mat4 model(1.0f);
