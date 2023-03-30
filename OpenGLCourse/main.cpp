@@ -1,3 +1,5 @@
+#define STB_IMAGE_IMPLEMENTATION
+
 #include <stdio.h>
 #include <string.h>
 #include <cmath>
@@ -14,6 +16,7 @@
 #include "Mesh.h"
 #include "Shader.h"
 #include "Camera.h"
+#include "Texture.h"
 
 // window dimensions
 const GLint WIDTH = 800;
@@ -42,21 +45,21 @@ void CreateObjects()
 	};
 
 	GLfloat vertices[] = {
-		// x      y     z
-		-1.0f, -1.0f, 0.0f,
-		 0.0f, -1.0f, 1.0f,
-		 1.0f, -1.0f, 0.0f,
-		 0.0f,  1.0f, 0.0f
+		// x      y     z      u     v
+		-1.0f, -1.0f, 0.0f,  0.0f, 0.0f,
+		 0.0f, -1.0f, 1.0f,  0.5f, 0.0f,
+		 1.0f, -1.0f, 0.0f,  1.0f, 0.0f,
+		 0.0f,  1.0f, 0.0f,  0.5f, 1.0f
 	};
 
 	// NOTE(christian): I still don't understand why there are "create" calls instead of just
 	//					using the contructor. 
 	Mesh* mesh1 = new Mesh();
-	mesh1->Create(vertices, indices, 12, 12);
+	mesh1->Create(vertices, indices, 20, 12);
 	meshList.push_back(mesh1);
 
 	Mesh* mesh2 = new Mesh();
-	mesh2->Create(vertices, indices, 12, 12);
+	mesh2->Create(vertices, indices, 20, 12);
 	meshList.push_back(mesh2);
 }
 
@@ -83,6 +86,11 @@ int main()
 	CreateShaders();
 
 	Camera camera(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f, 5.0f, 0.1f);
+
+	Texture brickTexture("textures/brick.png");
+	brickTexture.LoadTexture();
+	Texture dirtTexture("textures/dirt.png");
+	dirtTexture.LoadTexture();
 
 	// NOTE(christian): I understand the idea behind the near and far but why these values?
 	glm::mat4 projection =
@@ -117,6 +125,7 @@ int main()
 		glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
 		glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(camera.calculateViewMatrix()));
 		glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projection));
+		brickTexture.UseTexture();
 		meshList[0]->Render();
 
 		// draw another object
@@ -125,6 +134,7 @@ int main()
 		glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
 		glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(camera.calculateViewMatrix()));
 		glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projection));
+		dirtTexture.UseTexture();
 		meshList[1]->Render();
 
 		glUseProgram(0);
