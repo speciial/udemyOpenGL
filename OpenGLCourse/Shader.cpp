@@ -6,10 +6,15 @@ Shader::Shader()
 	uniformModel = 0;
 	uniformView = 0;
 	uniformProjection = 0;
+	uniformEyePosition = 0;
+
 	uniformAmbientIntensity = 0;
 	uniformAmbientColor = 0;
 	uniformDiffuseIntensity = 0;
 	uniformDirection = 0;
+	
+	uniformSpecularIntensity = 0;
+	uniformShininess = 0;
 }
 
 Shader::~Shader()
@@ -45,6 +50,11 @@ GLuint Shader::GetViewLocation()
 	return uniformView;
 }
 
+GLuint Shader::GetEyePositionLocation()
+{
+	return uniformEyePosition;
+}
+
 GLuint Shader::GetAmbientIntensityLocation()
 {
 	return uniformAmbientIntensity;
@@ -65,6 +75,16 @@ GLuint Shader::GetDirectionLocation()
 	return uniformDirection;
 }
 
+GLuint Shader::GetSpecularIntensityLocation()
+{
+	return uniformSpecularIntensity;
+}
+
+GLuint Shader::GetShininessLocation()
+{
+	return uniformShininess;
+}
+
 void Shader::use()
 {
 	glUseProgram(shaderID);
@@ -80,10 +100,15 @@ void Shader::clear()
 	uniformModel = 0;
 	uniformView = 0;
 	uniformProjection = 0;
+	uniformEyePosition = 0;
+
 	uniformAmbientIntensity = 0;
 	uniformAmbientColor = 0;
 	uniformDiffuseIntensity = 0;
 	uniformDirection = 0;
+	
+	uniformSpecularIntensity = 0;
+	uniformShininess = 0;
 }
 
 void Shader::AddShader(GLuint theProgram, const char* shaderCode, GLenum shaderType)
@@ -153,10 +178,15 @@ void Shader::CompileShader(const char* vertexShaderCode, const char* fragmentSha
 	uniformModel = glGetUniformLocation(shaderID, "model");
 	uniformProjection = glGetUniformLocation(shaderID, "projection");
 	uniformView = glGetUniformLocation(shaderID, "view");
+	uniformEyePosition = glGetUniformLocation(shaderID, "eyePosition");
+
 	uniformAmbientIntensity = glGetUniformLocation(shaderID, "directionalLight.ambientIntensity");
 	uniformAmbientColor = glGetUniformLocation(shaderID, "directionalLight.color");
 	uniformDiffuseIntensity = glGetUniformLocation(shaderID, "directionalLight.diffuseIntensity");
 	uniformDirection = glGetUniformLocation(shaderID, "directionalLight.direction");
+	
+	uniformSpecularIntensity = glGetUniformLocation(shaderID, "material.specularIntensity");
+	uniformShininess = glGetUniformLocation(shaderID, "material.shininess");
 }
 
 std::string Shader::ReadFile(const char* filePath)

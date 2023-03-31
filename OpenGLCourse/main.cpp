@@ -18,10 +18,11 @@
 #include "Camera.h"
 #include "Texture.h"
 #include "Light.h"
+#include "Material.h"
 
 // window dimensions
-const GLint WIDTH = 800;
-const GLint HEIGHT = 600;
+const GLint WIDTH = 1280;
+const GLint HEIGHT = 720;
 
 std::vector<Mesh*> meshList;
 std::vector<Shader*> shaderList;
@@ -88,10 +89,10 @@ void CreateObjects()
 
 	GLfloat vertices[] = {
 		// x      y     z      u     v     nx    ny    nz
-		-1.0f, -1.0f, 0.0f,  0.0f, 0.0f,  0.0f, 0.0f, 0.0f,
-		 0.0f, -1.0f, 1.0f,  0.5f, 0.0f,  0.0f, 0.0f, 0.0f,
-		 1.0f, -1.0f, 0.0f,  1.0f, 0.0f,  0.0f, 0.0f, 0.0f,
-		 0.0f,  1.0f, 0.0f,  0.5f, 1.0f,  0.0f, 0.0f, 0.0f
+		-1.0f, -1.0f, -0.6f,  0.0f, 0.0f,  0.0f, 0.0f, 0.0f,
+		 0.0f, -1.0f,  1.0f,  0.5f, 0.0f,  0.0f, 0.0f, 0.0f,
+		 1.0f, -1.0f, -0.6f,  1.0f, 0.0f,  0.0f, 0.0f, 0.0f,
+		 0.0f,  1.0f,  0.0f,  0.5f, 1.0f,  0.0f, 0.0f, 0.0f
 	};
 
 	calcAverageNormals(indices, 12, vertices, 32, 8, 5);
@@ -136,8 +137,11 @@ int main()
 	Texture dirtTexture("textures/dirt.png");
 	dirtTexture.LoadTexture();
 
+	Material shinyMaterial(1.0f, 32.0f);
+	Material dullMaterial(0.3f, 4.0f);
+
 	Light mainLight(1.0f, 1.0f, 1.0f, 0.2f,
-		2.0f, -1.0f, -2.0f, 1.0f);
+		2.0f, -1.0f, -2.0f, 0.3f);
 
 	// NOTE(christian): I understand the idea behind the near and far but why these values?
 	glm::mat4 projection =
@@ -165,31 +169,37 @@ int main()
 		GLuint uniformModel = shaderList[0]->GetModelLocation();
 		GLuint uniformView = shaderList[0]->GetViewLocation();
 		GLuint uniformProjection = shaderList[0]->GetProjectionLocation();
-		
+		GLuint uniformEyePosition = shaderList[0]->GetEyePositionLocation();
+
 		GLuint uniformAmbientColor = shaderList[0]->GetAmbientColorLocation();
 		GLuint uniformAmbientIntensity = shaderList[0]->GetAmbientIntensityLocation();
 		GLuint uniformDirection = shaderList[0]->GetDirectionLocation();
 		GLuint uniformDiffuseIntensity = shaderList[0]->GetDiffuseIntensityLocation();
 
+		GLuint uniformSpecularIntensity = shaderList[0]->GetSpecularIntensityLocation();
+		GLuint uniformShininess = shaderList[0]->GetShininessLocation();
+
 		mainLight.useLight(uniformAmbientIntensity, uniformAmbientColor,
 			uniformDiffuseIntensity, uniformDirection);
+
+		glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(camera.calculateViewMatrix()));
+		glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projection));
+		glUniform3fv(uniformEyePosition, 1, glm::value_ptr(camera.getPosition()));
 
 		// draw one object
 		glm::mat4 model(1.0f);
 		model = glm::translate(model, glm::vec3(-2.0f, 0.0f, -5.0f));
 		glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
-		glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(camera.calculateViewMatrix()));
-		glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projection));
 		brickTexture.UseTexture();
+		shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
 		meshList[0]->Render();
 
 		// draw another object
 		model = glm::mat4(1.0f);
 		model = glm::translate(model, glm::vec3(2.0f, 0.0f, -5.0f));
 		glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
-		glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(camera.calculateViewMatrix()));
-		glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projection));
 		dirtTexture.UseTexture();
+		dullMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
 		meshList[1]->Render();
 
 		glUseProgram(0);
