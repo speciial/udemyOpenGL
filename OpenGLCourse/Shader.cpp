@@ -8,13 +8,16 @@ Shader::Shader()
 	uniformProjection = 0;
 	uniformEyePosition = 0;
 
-	uniformAmbientIntensity = 0;
-	uniformAmbientColor = 0;
-	uniformDiffuseIntensity = 0;
-	uniformDirection = 0;
+	uniformDirectionalLight.uniformAmbientIntensity = 0;
+	uniformDirectionalLight.uniformColor = 0;
+	uniformDirectionalLight.uniformDiffuseIntensity = 0;
+	uniformDirectionalLight.uniformDirection = 0;
 	
 	uniformSpecularIntensity = 0;
 	uniformShininess = 0;
+
+	pointLightCount = 0;
+	uniformPointLightCount = 0;
 }
 
 Shader::~Shader()
@@ -57,22 +60,22 @@ GLuint Shader::GetEyePositionLocation()
 
 GLuint Shader::GetAmbientIntensityLocation()
 {
-	return uniformAmbientIntensity;
+	return uniformDirectionalLight.uniformAmbientIntensity;
 }
 
 GLuint Shader::GetAmbientColorLocation()
 {
-	return uniformAmbientColor;
+	return uniformDirectionalLight.uniformColor;
 }
 
 GLuint Shader::GetDiffuseIntensityLocation()
 {
-	return uniformDiffuseIntensity;
+	return uniformDirectionalLight.uniformDiffuseIntensity;
 }
 
 GLuint Shader::GetDirectionLocation()
 {
-	return uniformDirection;
+	return uniformDirectionalLight.uniformDirection;
 }
 
 GLuint Shader::GetSpecularIntensityLocation()
@@ -102,13 +105,16 @@ void Shader::clear()
 	uniformProjection = 0;
 	uniformEyePosition = 0;
 
-	uniformAmbientIntensity = 0;
-	uniformAmbientColor = 0;
-	uniformDiffuseIntensity = 0;
-	uniformDirection = 0;
+	uniformDirectionalLight.uniformAmbientIntensity = 0;
+	uniformDirectionalLight.uniformColor = 0;
+	uniformDirectionalLight.uniformDiffuseIntensity = 0;
+	uniformDirectionalLight.uniformDirection = 0;
 	
 	uniformSpecularIntensity = 0;
 	uniformShininess = 0;
+
+	pointLightCount = 0;
+	uniformPointLightCount = 0;
 }
 
 void Shader::AddShader(GLuint theProgram, const char* shaderCode, GLenum shaderType)
@@ -136,6 +142,36 @@ void Shader::AddShader(GLuint theProgram, const char* shaderCode, GLenum shaderT
 
 	// attach the shader to the program
 	glAttachShader(theProgram, theShader);
+}
+
+// NOTE(christian): this makes things so much harder to understand. where are all the parameters going?
+void Shader::setDirectionalLight(DirectionalLight& directionalLight)
+{
+	directionalLight.useLight(uniformDirectionalLight.uniformAmbientIntensity, uniformDirectionalLight.uniformColor,
+		uniformDirectionalLight.uniformDiffuseIntensity, uniformDirectionalLight.uniformDirection);
+}
+
+void Shader::setPointLights(PointLight* pointLight, unsigned int lightCount)
+{
+	if (lightCount > MAX_POINT_LIGHTS)
+	{
+		lightCount = MAX_POINT_LIGHTS;
+	}
+
+	glUniform1i(uniformPointLightCount, lightCount);
+
+	for (size_t lightIndex = 0; lightIndex < lightCount; ++lightIndex)
+	{
+		pointLight[lightIndex].useLight(
+			uniformPointLight[lightIndex].uniformAmbientIntensity,
+			uniformPointLight[lightIndex].uniformColor,
+			uniformPointLight[lightIndex].uniformDiffuseIntensity,
+			uniformPointLight[lightIndex].uniformPosition,
+			uniformPointLight[lightIndex].uniformConstant,
+			uniformPointLight[lightIndex].uniformLinear,
+			uniformPointLight[lightIndex].uniformExponent
+		);
+	}
 }
 
 void Shader::CompileShader(const char* vertexShaderCode, const char* fragmentShaderCode)
@@ -180,13 +216,42 @@ void Shader::CompileShader(const char* vertexShaderCode, const char* fragmentSha
 	uniformView = glGetUniformLocation(shaderID, "view");
 	uniformEyePosition = glGetUniformLocation(shaderID, "eyePosition");
 
-	uniformAmbientIntensity = glGetUniformLocation(shaderID, "directionalLight.ambientIntensity");
-	uniformAmbientColor = glGetUniformLocation(shaderID, "directionalLight.color");
-	uniformDiffuseIntensity = glGetUniformLocation(shaderID, "directionalLight.diffuseIntensity");
-	uniformDirection = glGetUniformLocation(shaderID, "directionalLight.direction");
+	uniformDirectionalLight.uniformAmbientIntensity = glGetUniformLocation(shaderID, "directionalLight.base.ambientIntensity");
+	uniformDirectionalLight.uniformColor = glGetUniformLocation(shaderID, "directionalLight.base.color");
+	uniformDirectionalLight.uniformDiffuseIntensity = glGetUniformLocation(shaderID, "directionalLight.base.diffuseIntensity");
+	uniformDirectionalLight.uniformDirection = glGetUniformLocation(shaderID, "directionalLight.direction");
 	
 	uniformSpecularIntensity = glGetUniformLocation(shaderID, "material.specularIntensity");
 	uniformShininess = glGetUniformLocation(shaderID, "material.shininess");
+
+	uniformPointLightCount = glGetUniformLocation(shaderID, "pointLightCount");
+	// NOTE(christian): is this really how you would do this? can't you just use a vertex buffer for this?
+	// NOTE(christian): if this works on the first try, I'll lose my mind
+	for (size_t pointLightIndex = 0; pointLightIndex < MAX_POINT_LIGHTS; ++pointLightIndex)
+	{
+		char locBuff[100] = { '\0' };
+		
+		snprintf(locBuff, sizeof(locBuff), "pointLights[%d].base.color", pointLightIndex);
+		uniformPointLight[pointLightIndex].uniformColor = glGetUniformLocation(shaderID, locBuff);
+
+		snprintf(locBuff, sizeof(locBuff), "pointLights[%d].base.ambientIntensity", pointLightIndex);
+		uniformPointLight[pointLightIndex].uniformAmbientIntensity = glGetUniformLocation(shaderID, locBuff);
+
+		snprintf(locBuff, sizeof(locBuff), "pointLights[%d].base.diffuseIntensity", pointLightIndex);
+		uniformPointLight[pointLightIndex].uniformDiffuseIntensity = glGetUniformLocation(shaderID, locBuff);
+	
+		snprintf(locBuff, sizeof(locBuff), "pointLights[%d].position", pointLightIndex);
+		uniformPointLight[pointLightIndex].uniformPosition = glGetUniformLocation(shaderID, locBuff);
+		
+		snprintf(locBuff, sizeof(locBuff), "pointLights[%d].constant", pointLightIndex);
+		uniformPointLight[pointLightIndex].uniformConstant = glGetUniformLocation(shaderID, locBuff);
+
+		snprintf(locBuff, sizeof(locBuff), "pointLights[%d].linear", pointLightIndex);
+		uniformPointLight[pointLightIndex].uniformLinear = glGetUniformLocation(shaderID, locBuff);
+
+		snprintf(locBuff, sizeof(locBuff), "pointLights[%d].exponent", pointLightIndex);
+		uniformPointLight[pointLightIndex].uniformExponent = glGetUniformLocation(shaderID, locBuff);
+	}
 }
 
 std::string Shader::ReadFile(const char* filePath)

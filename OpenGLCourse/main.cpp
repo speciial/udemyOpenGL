@@ -12,13 +12,18 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include "CommonValues.h"
+
 #include "Window.h"
 #include "Mesh.h"
 #include "Shader.h"
 #include "Camera.h"
 #include "Texture.h"
-#include "Light.h"
+#include "DirectionalLight.h"
+#include "PointLight.h"
 #include "Material.h"
+
+// NOTE(christian): understand the phong lighting model in more detail. 
 
 // window dimensions
 const GLint WIDTH = 1280;
@@ -88,11 +93,24 @@ void CreateObjects()
 	};
 
 	GLfloat vertices[] = {
-		// x      y     z      u     v     nx    ny    nz
+		// x      y      z      u     v     nx    ny    nz
 		-1.0f, -1.0f, -0.6f,  0.0f, 0.0f,  0.0f, 0.0f, 0.0f,
 		 0.0f, -1.0f,  1.0f,  0.5f, 0.0f,  0.0f, 0.0f, 0.0f,
 		 1.0f, -1.0f, -0.6f,  1.0f, 0.0f,  0.0f, 0.0f, 0.0f,
 		 0.0f,  1.0f,  0.0f,  0.5f, 1.0f,  0.0f, 0.0f, 0.0f
+	};
+
+	GLuint floorIndices[] = {
+		0, 2, 1,
+		1, 2, 3
+	};
+
+	GLfloat floorVertices[] =
+	{
+		-10.0f, 0.0f, -10.0f,   0.0f,  0.0f,  0.0f, -1.0f, 0.0f,
+		 10.0f, 0.0f, -10.0f,  10.0f,  0.0f,  0.0f, -1.0f, 0.0f,
+		-10.0f, 0.0f,  10.0f,   0.0f, 10.0f,  0.0f, -1.0f, 0.0f,
+		 10.0f, 0.0f,  10.0f,  10.0f, 10.0f,  0.0f, -1.0f, 0.0f
 	};
 
 	calcAverageNormals(indices, 12, vertices, 32, 8, 5);
@@ -106,6 +124,10 @@ void CreateObjects()
 	Mesh* mesh2 = new Mesh();
 	mesh2->Create(vertices, indices, 32, 12);
 	meshList.push_back(mesh2);
+
+	Mesh* floorMesh = new Mesh();
+	floorMesh->Create(floorVertices, floorIndices, 32, 6);
+	meshList.push_back(floorMesh);
 }
 
 void CreateShaders()
@@ -136,12 +158,27 @@ int main()
 	brickTexture.LoadTexture();
 	Texture dirtTexture("textures/dirt.png");
 	dirtTexture.LoadTexture();
+	Texture plainTexture("textures/plain.png");
+	plainTexture.LoadTexture();
 
 	Material shinyMaterial(1.0f, 32.0f);
 	Material dullMaterial(0.3f, 4.0f);
 
-	Light mainLight(1.0f, 1.0f, 1.0f, 0.2f,
-		2.0f, -1.0f, -2.0f, 0.3f);
+	DirectionalLight mainLight(1.0f, 1.0f, 1.0f, 0.2f, 0.3f,
+							   2.0f, -1.0f, -2.0f);
+
+	unsigned int pointLightCount = 0;
+	PointLight pointLights[MAX_POINT_LIGHTS] = {};
+	pointLights[0] = PointLight(0.0f, 0.0f, 1.0f, 
+								0.1f, 0.4f,
+								4.0f, 0.0f, 0.0f,
+								0.3f, 0.2f, 0.1f);
+	++pointLightCount;
+	pointLights[1] = PointLight(0.0f, 1.0f, 0.0f,
+								0.1f, 1.0f,
+								-4.0f, 2.0f, 0.0f,
+								0.3f, 0.1f, 0.1f);
+	++pointLightCount;
 
 	// NOTE(christian): I understand the idea behind the near and far but why these values?
 	glm::mat4 projection =
@@ -166,22 +203,20 @@ int main()
 
 		// draw stuff
 		shaderList[0]->use();
+
+		// NOTE(christian): having the uniforms all here is probably not ideal.
 		GLuint uniformModel = shaderList[0]->GetModelLocation();
 		GLuint uniformView = shaderList[0]->GetViewLocation();
 		GLuint uniformProjection = shaderList[0]->GetProjectionLocation();
 		GLuint uniformEyePosition = shaderList[0]->GetEyePositionLocation();
 
-		GLuint uniformAmbientColor = shaderList[0]->GetAmbientColorLocation();
-		GLuint uniformAmbientIntensity = shaderList[0]->GetAmbientIntensityLocation();
-		GLuint uniformDirection = shaderList[0]->GetDirectionLocation();
-		GLuint uniformDiffuseIntensity = shaderList[0]->GetDiffuseIntensityLocation();
-
 		GLuint uniformSpecularIntensity = shaderList[0]->GetSpecularIntensityLocation();
 		GLuint uniformShininess = shaderList[0]->GetShininessLocation();
 
-		mainLight.useLight(uniformAmbientIntensity, uniformAmbientColor,
-			uniformDiffuseIntensity, uniformDirection);
+		shaderList[0]->setDirectionalLight(mainLight);
+		shaderList[0]->setPointLights(pointLights, pointLightCount);
 
+		// NOTE(christian): this looks like the camera. perhaps move this out to the camera class?
 		glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(camera.calculateViewMatrix()));
 		glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projection));
 		glUniform3fv(uniformEyePosition, 1, glm::value_ptr(camera.getPosition()));
@@ -201,6 +236,14 @@ int main()
 		dirtTexture.UseTexture();
 		dullMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
 		meshList[1]->Render();
+
+		// draw floor object
+		model = glm::mat4(1.0f);
+		model = glm::translate(model, glm::vec3(0.0f, -2.0f, 0.0f));
+		glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
+		plainTexture.UseTexture();
+		shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
+		meshList[2]->Render();
 
 		glUseProgram(0);
 
