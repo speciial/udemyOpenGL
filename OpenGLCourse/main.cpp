@@ -21,6 +21,7 @@
 #include "Texture.h"
 #include "DirectionalLight.h"
 #include "PointLight.h"
+#include "SpotLight.h"
 #include "Material.h"
 
 // NOTE(christian): understand the phong lighting model in more detail. 
@@ -164,7 +165,8 @@ int main()
 	Material shinyMaterial(1.0f, 32.0f);
 	Material dullMaterial(0.3f, 4.0f);
 
-	DirectionalLight mainLight(1.0f, 1.0f, 1.0f, 0.2f, 0.3f,
+	DirectionalLight mainLight(1.0f, 1.0f, 1.0f, 
+							   0.0f, 0.0f, 
 							   2.0f, -1.0f, -2.0f);
 
 	unsigned int pointLightCount = 0;
@@ -175,10 +177,29 @@ int main()
 								0.3f, 0.2f, 0.1f);
 	++pointLightCount;
 	pointLights[1] = PointLight(0.0f, 1.0f, 0.0f,
-								0.1f, 1.0f,
+								0.1f, 0.5f,
 								-4.0f, 2.0f, 0.0f,
 								0.3f, 0.1f, 0.1f);
 	++pointLightCount;
+
+	pointLightCount = 0;
+
+	unsigned int spotLightCount = 0;
+	SpotLight spotLights[MAX_SPOT_LIGHTS] = {};
+	spotLights[0] = SpotLight(1.0f, 1.0f, 1.0f,
+							  0.1f, 1.0f,
+							  0.0f, 0.0f, 0.0f,
+							  0.0f, -1.0f, 0.0f,
+							  1.0f, 0.0f, 0.0f,
+							  30.0f);
+	++spotLightCount;
+	spotLights[1] = SpotLight(1.0f, 0.0f, 1.0f,
+							  0.0f, 1.0f,
+							  0.0f, -1.5f, 0.0f,
+							  -100.0f, -1.0f, 0.0f,
+							  1.0f, 0.0f, 0.0f,
+							  20.0f);
+	++spotLightCount;
 
 	// NOTE(christian): I understand the idea behind the near and far but why these values?
 	glm::mat4 projection =
@@ -213,8 +234,11 @@ int main()
 		GLuint uniformSpecularIntensity = shaderList[0]->GetSpecularIntensityLocation();
 		GLuint uniformShininess = shaderList[0]->GetShininessLocation();
 
+		spotLights[0].setFlash((camera.getPosition() - glm::vec3(0.0f, 0.2f, 0.0f)), camera.getDirection());
+
 		shaderList[0]->setDirectionalLight(mainLight);
 		shaderList[0]->setPointLights(pointLights, pointLightCount);
+		shaderList[0]->setSpotLights(spotLights, spotLightCount);
 
 		// NOTE(christian): this looks like the camera. perhaps move this out to the camera class?
 		glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(camera.calculateViewMatrix()));

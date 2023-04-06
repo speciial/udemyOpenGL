@@ -17,6 +17,7 @@ public:
 	glm::mat4 calculateViewMatrix();
 
 	inline glm::vec3 getPosition() { return position; }
+	inline glm::vec3 getDirection() { return glm::normalize(front); }
 
 private:
 	glm::vec3 position;

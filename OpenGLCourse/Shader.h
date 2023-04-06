@@ -10,6 +10,7 @@
 // NOTE(christian): the shader should not depend on the light classes.
 #include "DirectionalLight.h"
 #include "PointLight.h"
+#include "SpotLight.h"
 
 #include "CommonValues.h"
 
@@ -21,7 +22,7 @@ public:
 
 	void CreateFromString(const char* vertexShaderCode, const char* fragmentShaderCode);
 	void CreateFromFile(const char* vertexShaderPath, const char* fragmentShaderPath);
-	
+
 	GLuint GetProjectionLocation();
 	GLuint GetModelLocation();
 	GLuint GetViewLocation();
@@ -31,12 +32,13 @@ public:
 	GLuint GetAmbientColorLocation();
 	GLuint GetDiffuseIntensityLocation();
 	GLuint GetDirectionLocation();
-	
+
 	GLuint GetSpecularIntensityLocation();
 	GLuint GetShininessLocation();
 
 	void setDirectionalLight(DirectionalLight& directionalLight);
 	void setPointLights(PointLight* pointLight, unsigned int lightCount);
+	void setSpotLights(SpotLight* spotLight, unsigned int lightCount);
 
 	void use();
 	void clear();
@@ -72,6 +74,23 @@ private:
 		GLuint uniformLinear;
 		GLuint uniformExponent;
 	} uniformPointLight[MAX_POINT_LIGHTS];
+
+	int spotLightCount;
+	GLuint uniformSpotLightCount;
+	struct
+	{
+		GLuint uniformColor;
+		GLuint uniformAmbientIntensity;
+		GLuint uniformDiffuseIntensity;
+
+		GLuint uniformPosition;
+		GLuint uniformConstant;
+		GLuint uniformLinear;
+		GLuint uniformExponent;
+
+		GLuint uniformDirection;
+		GLuint uniformEdge;
+	} uniformSpotLight[MAX_SPOT_LIGHTS];
 
 	void CompileShader(const char* vertexShaderCode, const char* fragmentShaderCode);
 	void AddShader(GLuint theProgram, const char* shaderCode, GLenum shaderType);

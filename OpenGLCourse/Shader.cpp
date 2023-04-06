@@ -18,6 +18,9 @@ Shader::Shader()
 
 	pointLightCount = 0;
 	uniformPointLightCount = 0;
+
+	spotLightCount = 0;
+	uniformSpotLightCount = 0;
 }
 
 Shader::~Shader()
@@ -115,6 +118,9 @@ void Shader::clear()
 
 	pointLightCount = 0;
 	uniformPointLightCount = 0;
+
+	spotLightCount = 0;
+	uniformSpotLightCount = 0;
 }
 
 void Shader::AddShader(GLuint theProgram, const char* shaderCode, GLenum shaderType)
@@ -170,6 +176,31 @@ void Shader::setPointLights(PointLight* pointLight, unsigned int lightCount)
 			uniformPointLight[lightIndex].uniformConstant,
 			uniformPointLight[lightIndex].uniformLinear,
 			uniformPointLight[lightIndex].uniformExponent
+		);
+	}
+}
+
+void Shader::setSpotLights(SpotLight* spotLight, unsigned int lightCount)
+{
+	if (lightCount > MAX_SPOT_LIGHTS)
+	{
+		lightCount = MAX_SPOT_LIGHTS;
+	}
+
+	glUniform1i(uniformSpotLightCount, lightCount);
+
+	for (size_t lightIndex = 0; lightIndex < lightCount; ++lightIndex)
+	{
+		spotLight[lightIndex].useLight(
+			uniformSpotLight[lightIndex].uniformAmbientIntensity,
+			uniformSpotLight[lightIndex].uniformColor,
+			uniformSpotLight[lightIndex].uniformDiffuseIntensity,
+			uniformSpotLight[lightIndex].uniformPosition,
+			uniformSpotLight[lightIndex].uniformDirection,
+			uniformSpotLight[lightIndex].uniformConstant,
+			uniformSpotLight[lightIndex].uniformLinear,
+			uniformSpotLight[lightIndex].uniformExponent,
+			uniformSpotLight[lightIndex].uniformEdge
 		);
 	}
 }
@@ -251,6 +282,51 @@ void Shader::CompileShader(const char* vertexShaderCode, const char* fragmentSha
 
 		snprintf(locBuff, sizeof(locBuff), "pointLights[%d].exponent", pointLightIndex);
 		uniformPointLight[pointLightIndex].uniformExponent = glGetUniformLocation(shaderID, locBuff);
+	}
+
+	uniformSpotLightCount = glGetUniformLocation(shaderID, "spotLightCount");
+	// NOTE(christian): this cannot be how this works. nobody can tell me that this is a good way to
+	//					to handle any of this. this is error prone (because you can easily have typos
+	//					in here. this is hard to maintain (because you need to manually check every 
+	//					occurence of variables or names). And if I understand the docs correctly, this 
+	//					only even works because snprintf clears the buffer to 0 because it has tp produce
+	//					a null terminated string... 
+	//					Not to mention that this is not performance relevant code. This gets called once
+	//					on startup. It is totaly ok to use higher level features to automate this and 
+	//					make it more user-friendly.
+	//					And the naming of the variables is just awful. Why would you ever call something
+	//					base? Just say what it is and leave the vague stuff out. If I go back and try to 
+	//					work with this, I have no idea what is happening.
+	for (size_t spotLightIndex = 0; spotLightIndex < MAX_SPOT_LIGHTS; ++spotLightIndex)
+	{
+		char locBuff[100] = { '\0' };
+
+		snprintf(locBuff, sizeof(locBuff), "spotLights[%d].base.base.color", spotLightIndex);
+		uniformSpotLight[spotLightIndex].uniformColor = glGetUniformLocation(shaderID, locBuff);
+
+		snprintf(locBuff, sizeof(locBuff), "spotLights[%d].base.base.ambientIntensity", spotLightIndex);
+		uniformSpotLight[spotLightIndex].uniformAmbientIntensity = glGetUniformLocation(shaderID, locBuff);
+
+		snprintf(locBuff, sizeof(locBuff), "spotLights[%d].base.base.diffuseIntensity", spotLightIndex);
+		uniformSpotLight[spotLightIndex].uniformDiffuseIntensity = glGetUniformLocation(shaderID, locBuff);
+
+		snprintf(locBuff, sizeof(locBuff), "spotLights[%d].base.position", spotLightIndex);
+		uniformSpotLight[spotLightIndex].uniformPosition = glGetUniformLocation(shaderID, locBuff);
+
+		snprintf(locBuff, sizeof(locBuff), "spotLights[%d].base.constant", spotLightIndex);
+		uniformSpotLight[spotLightIndex].uniformConstant = glGetUniformLocation(shaderID, locBuff);
+
+		snprintf(locBuff, sizeof(locBuff), "spotLights[%d].base.linear", spotLightIndex);
+		uniformSpotLight[spotLightIndex].uniformLinear = glGetUniformLocation(shaderID, locBuff);
+
+		snprintf(locBuff, sizeof(locBuff), "spotLights[%d].base.exponent", spotLightIndex);
+		uniformSpotLight[spotLightIndex].uniformExponent = glGetUniformLocation(shaderID, locBuff);
+
+		snprintf(locBuff, sizeof(locBuff), "spotLights[%d].direction", spotLightIndex);
+		uniformSpotLight[spotLightIndex].uniformDirection = glGetUniformLocation(shaderID, locBuff);
+	
+		snprintf(locBuff, sizeof(locBuff), "spotLights[%d].edge", spotLightIndex);
+		uniformSpotLight[spotLightIndex].uniformEdge = glGetUniformLocation(shaderID, locBuff);
 	}
 }
 
